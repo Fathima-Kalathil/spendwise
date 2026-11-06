@@ -2,7 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
@@ -69,7 +69,7 @@ export async function saveTransaction(fd: FormData): Promise<ActionState> {
   const p = z.object({
     id: z.string().uuid().optional().or(z.literal("")),
     type: z.enum(["income", "expense"]),
-    accountId: z.string().uuid("Choose an account."),
+    accountId: z.string().uuid().optional().or(z.literal("")),
     categoryId: z.string().uuid().optional().or(z.literal("")),
     amount: z.string().trim(),
     currency: z.string().length(3),
@@ -83,9 +83,17 @@ export async function saveTransaction(fd: FormData): Promise<ActionState> {
   const v = p.data;
   if (!isValidAmount(v.amount)) return { error: "Enter an amount greater than 0 (up to 4 decimals)." };
 
-  const [acc] = await db.select().from(accounts).where(and(eq(accounts.id, v.accountId), eq(accounts.userId, user.id))).limit(1);
-  if (!acc) return { error: "Account not found." };
-  if (acc.currency.trim() !== v.currency) return { error: `This account uses ${acc.currency.trim()}. Pick an account in ${v.currency}.` };
+  // The wallet is picked automatically: use the user's wallet in this currency, or create one.
+  let acc: typeof accounts.$inferSelect | undefined;
+  if (v.accountId) {
+    [acc] = await db.select().from(accounts).where(and(eq(accounts.id, v.accountId), eq(accounts.userId, user.id))).limit(1);
+    if (!acc) return { error: "Wallet not found." };
+    if (acc.currency.trim() !== v.currency) return { error: `This wallet uses ${acc.currency.trim()}. Pick a wallet in ${v.currency}.` };
+  } else {
+    if (!CURRENCY_CODES.includes(v.currency)) return { error: "Choose a currency." };
+    [acc] = await db.select().from(accounts).where(and(eq(accounts.userId, user.id), eq(accounts.currency, v.currency))).orderBy(asc(accounts.createdAt)).limit(1);
+    if (!acc) [acc] = await db.insert(accounts).values({ userId: user.id, name: `Cash – ${v.currency}`, type: "cash", currency: v.currency }).returning();
+  }
 
   if (v.categoryId) {
     const [cat] = await db.select({ id: categories.id }).from(categories)
@@ -105,7 +113,7 @@ export async function saveTransaction(fd: FormData): Promise<ActionState> {
   }
 
   const values = {
-    type: v.type, accountId: v.accountId, categoryId: v.categoryId || null, amount: v.amount, currency: v.currency,
+    type: v.type, accountId: acc!.id, categoryId: v.categoryId || null, amount: v.amount, currency: v.currency,
     rateToBase: rate, baseCurrency: base, date: v.date, description: v.description, notes: v.notes, paymentMethod: v.paymentMethod,
   };
   if (v.id) {

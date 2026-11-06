@@ -7,17 +7,17 @@ import { TxForm, type TxEdit } from "./TxForm";
 import type { AccountWithBalance } from "@/lib/queries";
 
 type Cat = { id: string; name: string; type: string };
-const ModalCtx = createContext<{ openTx: (tx?: TxEdit) => void }>({ openTx: () => {} });
+const ModalCtx = createContext<{ openTx: (tx?: TxEdit) => void; openNew: (type: "expense" | "income") => void }>({ openTx: () => {}, openNew: () => {} });
 export const useTxModal = () => useContext(ModalCtx);
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard" }, { href: "/transactions", label: "Transactions" },
-  { href: "/accounts", label: "Accounts" }, { href: "/settings", label: "Settings" },
+  { href: "/dashboard", label: "Home" }, { href: "/transactions", label: "History" },
+ { href: "/settings", label: "Settings" },
 ];
 
 export function AppShell(props: { userName: string; base: string; accounts: AccountWithBalance[]; categories: Cat[]; children: React.ReactNode }) {
   const path = usePathname();
-  const [modal, setModal] = useState<{ tx?: TxEdit } | null>(null);
+  const [modal, setModal] = useState<{ tx?: TxEdit; type?: "expense" | "income" } | null>(null);
   const [dark, setDark] = useState(() => typeof document !== "undefined" && document.documentElement.classList.contains("dark"));
   const toggle = () => {
     const next = !dark; setDark(next);
@@ -26,7 +26,7 @@ export function AppShell(props: { userName: string; base: string; accounts: Acco
   };
 
   return (
-    <ModalCtx.Provider value={{ openTx: (tx) => setModal({ tx }) }}>
+    <ModalCtx.Provider value={{ openTx: (tx) => setModal({ tx }), openNew: (type) => setModal({ type }) }}>
       <div className="flex min-h-screen">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r p-4 md:flex" style={{ borderColor: "var(--card1)", background: "color-mix(in srgb, var(--card1) 70%, transparent)", backdropFilter: "blur(10px)" }}>
           <div className="mb-4 px-2 text-lg font-bold" style={{ color: "var(--accent)" }}>SpendWise</div>
@@ -50,7 +50,7 @@ export function AppShell(props: { userName: string; base: string; accounts: Acco
         </nav>
       </div>
 
-      {modal && <TxForm tx={modal.tx} base={props.base} accounts={props.accounts} categories={props.categories} onClose={() => setModal(null)} />}
+      {modal && <TxForm tx={modal.tx} initialType={modal.type} base={props.base} accounts={props.accounts} categories={props.categories} onClose={() => setModal(null)} />}
     </ModalCtx.Provider>
   );
 }

@@ -11,7 +11,7 @@ export function SettingsForm({ name, base, email }: { name: string; base: string
     <form action={action} className="card max-w-lg space-y-3">
       <div><label className="label" htmlFor="sn">Name</label><input id="sn" name="name" className="input" defaultValue={name} required /></div>
       <div><label className="label">Email</label><div className="muted text-sm">{email}</div></div>
-      <div><label className="label" htmlFor="sb">Base currency</label>
+      <div><label className="label" htmlFor="sb">Main currency</label>
         <select id="sb" name="baseCurrency" className="input" defaultValue={base}>{CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select>
         <p className="muted mt-1 text-xs">Totals and charts are shown in this currency. Your original amounts never change, so you can switch any time.</p></div>
       {state.error && <p role="alert" className="neg text-sm">{state.error}</p>}

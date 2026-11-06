@@ -17,16 +17,16 @@ export function AccountForm() {
   useEffect(() => { if (state.ok) ref.current?.reset(); }, [state]);
   return (
     <form ref={ref} action={action} className="card space-y-3">
-      <h2 className="font-semibold">New account or wallet</h2>
-      <div><label className="label" htmlFor="an">Name</label><input id="an" name="name" className="input" placeholder="e.g. Bank – INR" required maxLength={40} /></div>
+      <h2 className="font-semibold">Add a wallet</h2>
+      <div><label className="label" htmlFor="an">Name</label><input id="an" name="name" className="input" placeholder="e.g. Bank account" required maxLength={40} /></div>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="label" htmlFor="at">Type</label><select id="at" name="type" className="input">{ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
+        <div><label className="label" htmlFor="at">Kind</label><select id="at" name="type" className="input">{ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
         <div><label className="label" htmlFor="ac">Currency</label><select id="ac" name="currency" className="input" defaultValue="INR">{CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}</select></div>
       </div>
-      <div><label className="label" htmlFor="ob">Opening balance</label><input id="ob" name="openingBalance" className="input" inputMode="decimal" defaultValue="0" /></div>
+      <div><label className="label" htmlFor="ob">Starting balance</label><input id="ob" name="openingBalance" className="input" inputMode="decimal" defaultValue="0" /></div>
       {state.error && <p role="alert" className="neg text-sm">{state.error}</p>}
-      {state.ok && <p role="status" className="pos text-sm">Account added.</p>}
-      <Submit label="Add account" />
+      {state.ok && <p role="status" className="pos text-sm">Wallet added.</p>}
+      <Submit label="Add wallet" />
     </form>
   );
 }
@@ -57,7 +57,7 @@ export function TransferForm({ accounts }: { accounts: AccountWithBalance[] }) {
     return () => { live = false; };
   }, [cross, from, to, out, date, edited]); // eslint-disable-line
 
-  if (accounts.length < 2) return <div className="card"><h2 className="font-semibold">Transfer between accounts</h2><p className="muted mt-1 text-sm">Create at least two accounts to move money between them.</p></div>;
+  if (accounts.length < 2) return <div className="card"><h2 className="font-semibold">Move money between wallets</h2><p className="muted mt-1 text-sm">Add at least two wallets to move money between them.</p></div>;
 
   return (
     <form className="card space-y-3" onSubmit={(e) => {
@@ -65,7 +65,7 @@ export function TransferForm({ accounts }: { accounts: AccountWithBalance[] }) {
       const fd = new FormData(e.currentTarget);
       start(async () => { const r = await createTransfer(fd); setMsg(r); if (r.ok) { setOut(""); setInn(""); setEdited(false); setNote(""); } });
     }}>
-      <h2 className="font-semibold">Transfer between accounts</h2>
+      <h2 className="font-semibold">Move money between wallets</h2>
       <div className="grid grid-cols-2 gap-2">
         <div><label className="label" htmlFor="tf">From</label><select id="tf" name="fromAccountId" className="input" value={from} onChange={(e) => { setFrom(e.target.value); setEdited(false); }}>{accounts.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
         <div><label className="label" htmlFor="tt">To</label><select id="tt" name="toAccountId" className="input" value={to} onChange={(e) => { setTo(e.target.value); setEdited(false); }}>{accounts.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
@@ -78,8 +78,8 @@ export function TransferForm({ accounts }: { accounts: AccountWithBalance[] }) {
       {cross && <div><label className="label" htmlFor="td2">Date</label><input id="td2" name="date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /><p className="muted mt-1 text-xs">{rateInfo}</p></div>}
       <div><label className="label" htmlFor="tn">Note</label><input id="tn" name="note" className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="Optional" /></div>
       {msg.error && <p role="alert" className="neg text-sm">{msg.error}</p>}
-      {msg.ok && <p role="status" className="pos text-sm">Transfer saved.</p>}
-      <button className="btn btn-primary w-full" disabled={pending}>{pending ? "Saving…" : "Transfer"}</button>
+      {msg.ok && <p role="status" className="pos text-sm">Done! Money moved.</p>}
+      <button className="btn btn-primary w-full" disabled={pending}>{pending ? "Saving…" : "Move money"}</button>
     </form>
   );
 }

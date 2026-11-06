@@ -1,22 +1,22 @@
 "use client";
 import { useState, useTransition } from "react";
 import { deleteTransaction } from "@/lib/actions";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatShortDate } from "@/lib/format";
 import { D } from "@/lib/money";
 import type { TxRow } from "@/lib/queries";
 import { useTxModal } from "./AppShell";
 
-export function TxTable({ rows, base, compact }: { rows: TxRow[]; base: string; compact?: boolean }) {
+export function TxTable({ rows, base, compact, short, empty }: { rows: TxRow[]; base: string; compact?: boolean; short?: boolean; empty?: string }) {
   const { openTx } = useTxModal();
   const [target, setTarget] = useState<TxRow | null>(null);
   const [pending, start] = useTransition();
 
-  if (!rows.length) return <p className="muted py-8 text-center text-sm">No transactions here yet. Tap “Add transaction” to record your first one.</p>;
+  if (!rows.length) return <p className="muted py-8 text-center text-sm">{empty ?? "No transactions here yet. Tap “Add transaction” to record your first one."}</p>;
 
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px]">
+        <table className="w-full min-w-[400px]">
           <thead><tr><th className="th">Date</th><th className="th">Details</th><th className="th text-right">Amount</th>{!compact && <th className="th" />}</tr></thead>
           <tbody>
             {rows.map((r) => {
@@ -24,7 +24,7 @@ export function TxTable({ rows, base, compact }: { rows: TxRow[]; base: string; 
               const showConv = r.currency !== base && r.baseCurrency === base && r.rateToBase;
               return (
                 <tr key={r.id}>
-                  <td className="td whitespace-nowrap">{formatDate(r.date)}</td>
+                  <td className="td whitespace-nowrap">{short ? formatShortDate(r.date) : formatDate(r.date)}</td>
                   <td className="td">
                     <div className="font-medium">{r.description || r.categoryName || "Transaction"}</div>
                     <div className="muted flex items-center gap-1.5 text-xs">

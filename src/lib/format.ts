@@ -12,6 +12,10 @@ export function formatMoney(value: Decimal.Value | null | undefined, currency: s
   }
 }
 
+export function formatShortDate(isoDate: string): string {
+  return new Date(isoDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
 export function formatDate(isoDate: string): string {
   return new Date(isoDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }

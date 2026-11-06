@@ -16,8 +16,8 @@ export function IncomeExpenseChart({ data, currency }: { data: { label: string; 
           <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
           <Tooltip formatter={(v: number) => formatMoney(v, currency)} />
           <Legend />
-          <Bar dataKey="income" name="Income" fill="url(#gi)" radius={[8, 8, 2, 2]} />
-          <Bar dataKey="expense" name="Expenses" fill="url(#ge)" radius={[8, 8, 2, 2]} />
+          <Bar dataKey="income" name="Earned" fill="url(#gi)" radius={[8, 8, 2, 2]} />
+          <Bar dataKey="expense" name="Spent" fill="url(#ge)" radius={[8, 8, 2, 2]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -25,8 +25,7 @@ export function IncomeExpenseChart({ data, currency }: { data: { label: string; 
 }
 
 export function CategoryDonut({ data, currency }: { data: { name: string; value: number; color: string }[]; currency: string }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  return (
+    return (
     <div className="flex flex-wrap items-center gap-4">
       <div role="img" aria-label="Expenses by category" style={{ width: 170, height: 170 }}>
         <ResponsiveContainer>
@@ -42,7 +41,7 @@ export function CategoryDonut({ data, currency }: { data: { name: string; value:
         {data.slice(0, 6).map((d) => (
           <li key={d.name} className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: d.color }} />{d.name}</span>
-            <span className="muted">{total ? Math.round((d.value / total) * 100) : 0}%</span>
+            <span className="muted">{formatMoney(d.value, currency)}</span>
           </li>
         ))}
       </ul>

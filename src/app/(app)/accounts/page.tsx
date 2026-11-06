@@ -9,7 +9,8 @@ export default async function AccountsPage() {
   const accounts = await getAccountsWithBalances(user.id);
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Accounts</h1>
+      <h1 className="text-2xl font-bold">My wallets</h1>
+      <p className="muted -mt-2 text-sm">A wallet holds money in one currency, like “Cash – INR” or “Bank – AED”. A wallet is added automatically the first time you use a new currency.</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((a) => (
           <div key={a.id} className="card card-hover flex items-center gap-3">
