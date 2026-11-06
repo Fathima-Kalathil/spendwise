@@ -5,7 +5,7 @@ Track income and expenses in INR, AED, USD, EUR and more. Every transaction keep
 **Stack:** Next.js 14 (App Router) · TypeScript · Tailwind CSS · Neon Postgres (free, via Vercel Storage) · Drizzle ORM · JWT cookie auth (jose + bcryptjs) · Recharts · decimal.js · Vitest · Vercel Hobby hosting · free exchange-rate APIs.
 
 ## Features
-- Register / login / logout (bcrypt password hashing, signed httpOnly JWT cookie, route middleware, every query scoped to the logged-in user)
+- Register with **email verification (6-digit code)**, login, logout with confirmation (bcrypt password hashing, signed httpOnly JWT cookie, route middleware, every query scoped to the logged-in user)
 - Add, edit, delete income and expenses; pick the currency per transaction (AED today, INR tomorrow)
 - Live exchange-rate lookup with a manual override; the rate is stored with each transaction
 - Accounts / wallets, each with its own currency and balance; cross-currency transfers
@@ -49,3 +49,11 @@ Budgets with alerts, recurring transactions, CSV/Excel/PDF export, receipt uploa
 4. Vercel: **Settings → Environment Variables**, add `AUTH_SECRET` (any random 32+ character string). In a browser console, `crypto.randomUUID() + crypto.randomUUID()` gives a good one.
 5. In the Neon console open **SQL Editor**, paste `sql/01-schema.sql` and run it. Optionally run `sql/02-demo-data.sql` for the demo user.
 6. Vercel: **Deployments → Redeploy** so the new variables are used. Open the live URL and register.
+
+## Email verification (6-digit code)
+New accounts must enter a 6-digit code sent by email before they can log in. Codes work for 10 minutes, allow 5 wrong tries, and are stored only as a keyed hash. Free setup with Gmail:
+1. Google Account → Security → turn on **2-Step Verification**.
+2. Search for **App passwords**, create one named "SpendWise" and copy the 16-character password (no spaces).
+3. In Vercel → Settings → Environment Variables add `SMTP_USER` (your Gmail address) and `SMTP_PASS` (the app password). Redeploy.
+4. On an existing database, run `sql/03-email-otp.sql` once (existing users are marked verified).
+Without SMTP variables, local development prints the code in the terminal instead of emailing it; production refuses to register users until email is configured.

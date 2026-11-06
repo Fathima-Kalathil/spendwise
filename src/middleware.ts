@@ -14,7 +14,7 @@ export async function middleware(req: NextRequest) {
     try { await jwtVerify(token, secret()); valid = true; } catch { valid = false; }
   }
   const { pathname } = req.nextUrl;
-  const isAuthPage = pathname === "/login" || pathname === "/register";
+  const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/verify";
   if (!valid && !isAuthPage) return NextResponse.redirect(new URL("/login", req.url));
   if (valid && (isAuthPage || pathname === "/")) return NextResponse.redirect(new URL("/dashboard", req.url));
   return NextResponse.next();

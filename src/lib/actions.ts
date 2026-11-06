@@ -2,16 +2,18 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { accounts, categories, transactions, transfers, users } from "@/db/schema";
+import { accounts, categories, emailOtps, transactions, transfers, users } from "@/db/schema";
 import { createSession, destroySession, requireUser } from "./auth";
 import { getRate } from "./fx";
 import { D, isValidAmount, isValidRate } from "./money";
 import { ACCOUNT_TYPES, CURRENCY_CODES, PAYMENT_METHODS } from "./currencies";
 import { DEFAULT_CATEGORIES } from "./defaults";
+import { OTP_MAX_ATTEMPTS, OTP_RESEND_MS, OTP_TTL_MS, generateOtp, hashOtp, isExpired, otpMatches, otpSecret } from "./otp";
+import { sendOtpEmail } from "./mail";
 
 export type ActionState = { error?: string; ok?: boolean };
 const refresh = () => revalidatePath("/", "layout");
@@ -19,6 +21,35 @@ const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date.");
 const firstError = (e: z.ZodError) => e.issues[0]?.message ?? "Please check the form.";
 
 // ---------------------------------------------------------------- auth
+async function seedDefaults(userId: string) {
+  const has = await db.select({ id: categories.id }).from(categories).where(eq(categories.userId, userId)).limit(1);
+  if (has.length) return;
+  await db.insert(categories).values(DEFAULT_CATEGORIES.map((c) => ({ ...c, userId })));
+  await db.insert(accounts).values([
+    { userId, name: "Cash – INR", type: "cash", currency: "INR" },
+    { userId, name: "Wallet – AED", type: "wallet", currency: "AED" },
+  ]);
+}
+
+/** Creates a fresh 6-digit code, stores only its hash, and emails it. */
+async function issueOtp(userId: string, email: string): Promise<"sent" | "cooldown" | "failed"> {
+  const [last] = await db.select().from(emailOtps).where(eq(emailOtps.userId, userId)).orderBy(desc(emailOtps.createdAt)).limit(1);
+  if (last && Date.now() - last.lastSentAt.getTime() < OTP_RESEND_MS) return "cooldown";
+  const code = generateOtp();
+  await db.delete(emailOtps).where(eq(emailOtps.userId, userId));
+  await db.insert(emailOtps).values({ userId, codeHash: hashOtp(code, email, otpSecret()), expiresAt: new Date(Date.now() + OTP_TTL_MS), lastSentAt: new Date() });
+  try {
+    await sendOtpEmail(email, code);
+    return "sent";
+  } catch (e) {
+    console.error("Could not send verification email:", e);
+    await db.delete(emailOtps).where(eq(emailOtps.userId, userId));
+    return "failed";
+  }
+}
+
+const SEND_FAILED = "We couldn’t send the verification email. Please try again in a moment.";
+
 export async function registerAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const p = z.object({
     name: z.string().trim().min(2, "Enter your name.").max(60),
@@ -27,18 +58,20 @@ export async function registerAction(_: ActionState, fd: FormData): Promise<Acti
   }).safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: firstError(p.error) };
 
-  const exists = await db.select({ id: users.id }).from(users).where(eq(users.email, p.data.email)).limit(1);
-  if (exists.length) return { error: "An account with this email already exists. Try signing in." };
+  const [existing] = await db.select().from(users).where(eq(users.email, p.data.email)).limit(1);
+  if (existing?.emailVerifiedAt) return { error: "An account with this email already exists. Try logging in." };
 
   const passwordHash = await bcrypt.hash(p.data.password, 10);
-  const [u] = await db.insert(users).values({ name: p.data.name, email: p.data.email, passwordHash }).returning({ id: users.id });
-  await db.insert(categories).values(DEFAULT_CATEGORIES.map((c) => ({ ...c, userId: u.id })));
-  await db.insert(accounts).values([
-    { userId: u.id, name: "Cash – INR", type: "cash", currency: "INR" },
-    { userId: u.id, name: "Wallet – AED", type: "wallet", currency: "AED" },
-  ]);
-  await createSession(u.id);
-  redirect("/dashboard");
+  let userId: string;
+  if (existing) {
+    // Registered earlier but never verified: let them try again with new details.
+    await db.update(users).set({ name: p.data.name, passwordHash }).where(eq(users.id, existing.id));
+    userId = existing.id;
+  } else {
+    [{ id: userId }] = await db.insert(users).values({ name: p.data.name, email: p.data.email, passwordHash }).returning({ id: users.id });
+  }
+  if ((await issueOtp(userId, p.data.email)) === "failed") return { error: SEND_FAILED };
+  redirect(`/verify?email=${encodeURIComponent(p.data.email)}`);
 }
 
 export async function loginAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -47,8 +80,45 @@ export async function loginAction(_: ActionState, fd: FormData): Promise<ActionS
   const [u] = await db.select().from(users).where(eq(users.email, p.data.email)).limit(1);
   const ok = u ? await bcrypt.compare(p.data.password, u.passwordHash) : false;
   if (!u || !ok) return { error: "Incorrect email or password." };
+  if (!u.emailVerifiedAt) {
+    if ((await issueOtp(u.id, u.email)) === "failed") return { error: SEND_FAILED };
+    redirect(`/verify?email=${encodeURIComponent(u.email)}`);
+  }
   await createSession(u.id);
   redirect("/dashboard");
+}
+
+export async function verifyOtpAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const p = z.object({ email: z.string().trim().toLowerCase().email(), code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your email.") }).safeParse(Object.fromEntries(fd));
+  if (!p.success) return { error: firstError(p.error) };
+  const [u] = await db.select().from(users).where(eq(users.email, p.data.email)).limit(1);
+  if (!u) return { error: "We couldn’t find this account. Please register again." };
+  if (u.emailVerifiedAt) redirect("/login");
+
+  const [otp] = await db.select().from(emailOtps).where(eq(emailOtps.userId, u.id)).orderBy(desc(emailOtps.createdAt)).limit(1);
+  if (!otp || isExpired(otp.expiresAt)) return { error: "This code has expired. Tap “Send a new code”." };
+  if (otp.attempts >= OTP_MAX_ATTEMPTS) return { error: "Too many wrong tries. Tap “Send a new code”." };
+  if (!otpMatches(p.data.code, u.email, otpSecret(), otp.codeHash)) {
+    await db.update(emailOtps).set({ attempts: otp.attempts + 1 }).where(eq(emailOtps.id, otp.id));
+    const left = OTP_MAX_ATTEMPTS - otp.attempts - 1;
+    return { error: left > 0 ? `That code isn’t right. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Tap “Send a new code”." };
+  }
+
+  await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, u.id));
+  await db.delete(emailOtps).where(eq(emailOtps.userId, u.id));
+  await seedDefaults(u.id);
+  await createSession(u.id);
+  redirect("/dashboard");
+}
+
+export async function resendOtpAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  const [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!u || u.emailVerifiedAt) return { ok: true }; // reveal nothing about other accounts
+  const r = await issueOtp(u.id, u.email);
+  if (r === "cooldown") return { error: "Please wait a minute before asking for another code." };
+  if (r === "failed") return { error: SEND_FAILED };
+  return { ok: true };
 }
 
 export async function logoutAction() {

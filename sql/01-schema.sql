@@ -16,6 +16,16 @@ CREATE TABLE IF NOT EXISTS "categories" (
 	"color" text DEFAULT '#0F766E' NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS "email_otps" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"code_hash" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"last_sent_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS "exchange_rates" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"base" char(3) NOT NULL,
@@ -61,6 +71,7 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"name" text NOT NULL,
 	"password_hash" text NOT NULL,
 	"base_currency" char(3) DEFAULT 'INR' NOT NULL,
+	"email_verified_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
@@ -73,6 +84,12 @@ END $$;
 
 DO $$ BEGIN
  ALTER TABLE "categories" ADD CONSTRAINT "categories_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+ ALTER TABLE "email_otps" ADD CONSTRAINT "email_otps_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -115,6 +132,7 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS "accounts_user_idx" ON "accounts" USING btree ("user_id");
 CREATE INDEX IF NOT EXISTS "categories_user_idx" ON "categories" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "email_otps_user_idx" ON "email_otps" USING btree ("user_id");
 CREATE UNIQUE INDEX IF NOT EXISTS "fx_unique" ON "exchange_rates" USING btree ("base","quote","rate_date");
 CREATE INDEX IF NOT EXISTS "tx_user_date_idx" ON "transactions" USING btree ("user_id","date");
 CREATE INDEX IF NOT EXISTS "tx_account_idx" ON "transactions" USING btree ("account_id");

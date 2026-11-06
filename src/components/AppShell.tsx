@@ -2,7 +2,7 @@
 import { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { logoutAction } from "@/lib/actions";
+import { LogoutButton } from "./LogoutButton";
 import { TxForm, type TxEdit } from "./TxForm";
 import type { AccountWithBalance } from "@/lib/queries";
 
@@ -35,7 +35,7 @@ export function AppShell(props: { userName: string; base: string; accounts: Acco
           <div className="mt-auto space-y-2">
             <button className="btn w-full" onClick={toggle}>{dark ? "Light mode" : "Dark mode"}</button>
             <div className="muted truncate px-1 text-xs">{props.userName}</div>
-            <form action={logoutAction}><button className="btn w-full">Sign out</button></form>
+            <LogoutButton />
           </div>
         </aside>
 

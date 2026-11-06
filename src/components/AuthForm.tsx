@@ -18,7 +18,7 @@ export function AuthForm({ mode, action }: { mode: "login" | "register"; action:
         <div><div className="text-xl font-bold">SpendWise</div><div className="muted text-sm">Track money in any currency</div></div>
       </div>
       <form action={formAction} className="card space-y-4">
-        <h1 className="text-lg font-bold">{isLogin ? "Sign in" : "Create your account"}</h1>
+        <h1 className="text-lg font-bold">{isLogin ? "Log in" : "Create your account"}</h1>
         {!isLogin && <div><label className="label" htmlFor="name">Name</label><input id="name" name="name" className="input" autoComplete="name" required /></div>}
         <div><label className="label" htmlFor="email">Email</label><input id="email" name="email" type="email" className="input" autoComplete="email" required /></div>
         <div><label className="label" htmlFor="password">Password</label>
@@ -26,10 +26,10 @@ export function AuthForm({ mode, action }: { mode: "login" | "register"; action:
           {!isLogin && <p className="muted mt-1 text-xs">At least 8 characters.</p>}
         </div>
         {state.error && <p role="alert" className="neg rounded-lg bg-red-50 px-3 py-2 text-sm dark:bg-red-950/40">{state.error}</p>}
-        <Submit label={isLogin ? "Sign in" : "Create account"} />
+        <Submit label={isLogin ? "Log in" : "Create account"} />
         <p className="muted text-center text-sm">
           {isLogin ? "New here? " : "Already have an account? "}
-          <Link href={isLogin ? "/register" : "/login"} className="font-semibold underline" style={{ color: "var(--accent)" }}>{isLogin ? "Create an account" : "Sign in"}</Link>
+          <Link href={isLogin ? "/register" : "/login"} className="font-semibold underline" style={{ color: "var(--accent)" }}>{isLogin ? "Create an account" : "Log in"}</Link>
         </p>
       </form>
     </main>

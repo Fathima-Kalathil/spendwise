@@ -12,7 +12,7 @@ async function main() {
 
   await db.delete(users).where(eq(users.email, "demo@spendwise.app"));
   const [u] = await db.insert(users).values({
-    email: "demo@spendwise.app", name: "Demo User", passwordHash: await bcrypt.hash("Demo@1234", 10), baseCurrency: "INR",
+    email: "demo@spendwise.app", name: "Demo User", passwordHash: await bcrypt.hash("Demo@1234", 10), baseCurrency: "INR", emailVerifiedAt: new Date(),
   }).returning();
   const cats = await db.insert(categories).values(DEFAULT_CATEGORIES.map((c) => ({ ...c, userId: u.id }))).returning();
   const accs = await db.insert(accounts).values([

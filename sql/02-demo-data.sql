@@ -1,7 +1,7 @@
 -- SpendWise demo data. Login: demo@spendwise.app / Demo@1234
 -- Safe to run again: it recreates the demo user.
 DELETE FROM users WHERE email = 'demo@spendwise.app';
-INSERT INTO users (id, email, name, password_hash, base_currency) VALUES ('00000000-0000-4000-8000-00000000d3a0', 'demo@spendwise.app', 'Demo User', '$2a$10$i/KXtxU6t6bNKgtD5RyYoextcah8qZPwDgQ.yEkDwpvACZTtIs8Am', 'INR');
+INSERT INTO users (id, email, name, password_hash, base_currency, email_verified_at) VALUES ('00000000-0000-4000-8000-00000000d3a0', 'demo@spendwise.app', 'Demo User', '$2a$10$i/KXtxU6t6bNKgtD5RyYoextcah8qZPwDgQ.yEkDwpvACZTtIs8Am', 'INR', now());
 INSERT INTO categories (user_id, name, type, color) VALUES
 ('00000000-0000-4000-8000-00000000d3a0', 'Food', 'expense', '#0F766E'),
 ('00000000-0000-4000-8000-00000000d3a0', 'Shopping', 'expense', '#2563EB'),
