@@ -11,6 +11,8 @@ import { CategoryDonut } from "@/components/Charts";
 import { TxTable } from "@/components/TxTable";
 import { AddButton } from "@/components/AddButton";
 
+const LIST_LIMIT = 8;
+
 export default async function MonthPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   const user = await requireUser();
   const base = user.baseCurrency.trim();
@@ -89,11 +91,13 @@ export default async function MonthPage({ searchParams }: { searchParams: Record
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="card">
           <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-semibold">Expenses <span className="neg">· {formatMoney(expense, base)}</span></h2><AddButton label="+ Add expense" type="expense" /></div>
-          <TxTable rows={expenses} base={base} short empty="No expenses added for this month yet." />
+          <TxTable rows={expenses.slice(0, LIST_LIMIT)} base={base} short empty="No expenses added for this month yet." />
+          {expenses.length > LIST_LIMIT && <Link href={`/transactions?type=expense&from=${from}&to=${to}`} className="btn mt-3 w-full">See all {expenses.length} expenses →</Link>}
         </section>
         <section className="card">
           <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-semibold">Income <span className="pos">· {formatMoney(income, base)}</span></h2><AddButton label="+ Add income" type="income" /></div>
-          <TxTable rows={incomes} base={base} short empty="No income added for this month yet." />
+          <TxTable rows={incomes.slice(0, LIST_LIMIT)} base={base} short empty="No income added for this month yet." />
+          {incomes.length > LIST_LIMIT && <Link href={`/transactions?type=income&from=${from}&to=${to}`} className="btn mt-3 w-full">See all {incomes.length} income items →</Link>}
         </section>
       </div>
 

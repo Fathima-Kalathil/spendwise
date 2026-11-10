@@ -40,7 +40,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NUM = /^\d+(\.\d{1,4})?$/;
 
-export async function getTransactions(userId: string, f: TxFilters = {}, limit = 200) {
+function buildConds(userId: string, f: TxFilters) {
   const conds = [eq(transactions.userId, userId)];
   if (f.q?.trim()) conds.push(ilike(transactions.description, `%${f.q.trim()}%`));
   if (f.type === "income" || f.type === "expense") conds.push(eq(transactions.type, f.type));
@@ -51,6 +51,16 @@ export async function getTransactions(userId: string, f: TxFilters = {}, limit =
   if (f.to && DATE.test(f.to)) conds.push(lte(transactions.date, f.to));
   if (f.min && NUM.test(f.min)) conds.push(gte(transactions.amount, f.min));
   if (f.max && NUM.test(f.max)) conds.push(lte(transactions.amount, f.max));
+  return conds;
+}
+
+export async function countTransactions(userId: string, f: TxFilters = {}): Promise<number> {
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(transactions).where(and(...buildConds(userId, f)));
+  return r?.n ?? 0;
+}
+
+export async function getTransactions(userId: string, f: TxFilters = {}, limit = 200, offset = 0) {
+  const conds = buildConds(userId, f);
 
   const rows = await db.select({
     id: transactions.id, type: transactions.type, amount: transactions.amount, currency: transactions.currency,
@@ -61,7 +71,7 @@ export async function getTransactions(userId: string, f: TxFilters = {}, limit =
   }).from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(and(...conds)).orderBy(desc(transactions.date), desc(transactions.createdAt)).limit(limit);
+    .where(and(...conds)).orderBy(desc(transactions.date), desc(transactions.createdAt)).limit(limit).offset(offset);
 
   return rows.map((r) => ({ ...r, currency: r.currency.trim(), baseCurrency: r.baseCurrency?.trim() ?? null }));
 }

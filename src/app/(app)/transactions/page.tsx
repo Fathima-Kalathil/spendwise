@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { getAccountsWithBalances, getCategories, getTransactions } from "@/lib/queries";
+import { countTransactions, getAccountsWithBalances, getCategories, getTransactions } from "@/lib/queries";
+import { Pagination } from "@/components/Pagination";
 import { TxTable } from "@/components/TxTable";
 import { CURRENCY_CODES } from "@/lib/currencies";
 
+const PAGE_SIZE = 15;
+
 export default async function HistoryPage({ searchParams: sp }: { searchParams: Record<string, string | undefined> }) {
   const user = await requireUser();
+  const filters = { q: sp.q, type: sp.type, categoryId: sp.category, currency: sp.currency, accountId: sp.account, from: sp.from, to: sp.to, min: sp.min, max: sp.max };
+  const total = await countTransactions(user.id, filters);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, parseInt(sp.page ?? "1", 10) || 1), totalPages);
   const [rows, accounts, categories] = await Promise.all([
-    getTransactions(user.id, { q: sp.q, type: sp.type, categoryId: sp.category, currency: sp.currency, accountId: sp.account, from: sp.from, to: sp.to, min: sp.min, max: sp.max }),
-    getAccountsWithBalances(user.id), getCategories(user.id),
+    getTransactions(user.id, filters, PAGE_SIZE, (page - 1) * PAGE_SIZE), getAccountsWithBalances(user.id), getCategories(user.id),
   ]);
   const used = Array.from(new Set(accounts.map((a) => a.currency)));
   const sel = (name: string) => sp[name] ?? "";
@@ -38,7 +44,7 @@ export default async function HistoryPage({ searchParams: sp }: { searchParams: 
           </div>
         </details>
       </form>
-      <section className="card"><div className="muted mb-1 text-xs">{rows.length} result{rows.length === 1 ? "" : "s"} (latest 200 shown)</div><TxTable rows={rows} base={user.baseCurrency.trim()} /></section>
+      <section className="card"><div className="muted mb-1 text-xs">{total} result{total === 1 ? "" : "s"}</div><TxTable rows={rows} base={user.baseCurrency.trim()} /><Pagination page={page} totalPages={totalPages} params={sp} /></section>
     </div>
   );
 }

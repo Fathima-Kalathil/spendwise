@@ -33,8 +33,8 @@ export function AppShell(props: { userName: string; base: string; accounts: Acco
           {NAV.map((n) => <Link key={n.href} href={n.href} className={`nav-link ${path.startsWith(n.href) ? "nav-on" : ""}`}>{n.label}</Link>)}
           <button className="btn btn-primary mt-4" onClick={() => setModal({})}>+ Add transaction</button>
           <div className="mt-auto space-y-2">
+            <div className="truncate px-1 text-sm font-semibold">{props.userName}</div>
             <button className="btn w-full" onClick={toggle}>{dark ? "Light mode" : "Dark mode"}</button>
-            <div className="muted truncate px-1 text-xs">{props.userName}</div>
             <LogoutButton />
           </div>
         </aside>
