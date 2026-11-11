@@ -8,7 +8,7 @@ function Submit({ label }: { label: string }) {
   return <button className="btn btn-primary w-full" disabled={pending}>{pending ? "Please wait…" : label}</button>;
 }
 
-export function AuthForm({ mode, action }: { mode: "login" | "register"; action: (s: ActionState, f: FormData) => Promise<ActionState> }) {
+export function AuthForm({ mode, action, notice }: { mode: "login" | "register"; action: (s: ActionState, f: FormData) => Promise<ActionState>; notice?: string }) {
   const [state, formAction] = useFormState(action, {});
   const isLogin = mode === "login";
   return (
@@ -19,11 +19,13 @@ export function AuthForm({ mode, action }: { mode: "login" | "register"; action:
       </div>
       <form action={formAction} className="card space-y-4">
         <h1 className="text-lg font-bold">{isLogin ? "Log in" : "Create your account"}</h1>
+        {notice && <p role="status" className="pos rounded-lg bg-green-50 px-3 py-2 text-sm dark:bg-green-950/40">{notice}</p>}
         {!isLogin && <div><label className="label" htmlFor="name">Name</label><input id="name" name="name" className="input" autoComplete="name" required /></div>}
         <div><label className="label" htmlFor="email">Email</label><input id="email" name="email" type="email" className="input" autoComplete="email" required /></div>
         <div><label className="label" htmlFor="password">Password</label>
           <input id="password" name="password" type="password" className="input" autoComplete={isLogin ? "current-password" : "new-password"} minLength={isLogin ? 1 : 8} required />
           {!isLogin && <p className="muted mt-1 text-xs">At least 8 characters.</p>}
+          {isLogin && <div className="mt-1 text-right"><Link href="/forgot-password" className="text-xs font-semibold underline" style={{ color: "var(--accent)" }}>Forgot password?</Link></div>}
         </div>
         {state.error && <p role="alert" className="neg rounded-lg bg-red-50 px-3 py-2 text-sm dark:bg-red-950/40">{state.error}</p>}
         <Submit label={isLogin ? "Log in" : "Create account"} />

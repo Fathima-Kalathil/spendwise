@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, categories, transactions, transfers } from "@/db/schema";
+import { accounts, budgets, categories, transactions, transfers } from "@/db/schema";
 import { accountBalance } from "./balances";
 
 /** Every query below is scoped by userId, so users can only ever see their own data. */
@@ -76,3 +76,8 @@ export async function getTransactions(userId: string, f: TxFilters = {}, limit =
   return rows.map((r) => ({ ...r, currency: r.currency.trim(), baseCurrency: r.baseCurrency?.trim() ?? null }));
 }
 export type TxRow = Awaited<ReturnType<typeof getTransactions>>[number];
+
+export async function getBudgets(userId: string) {
+  const rows = await db.select().from(budgets).where(eq(budgets.userId, userId));
+  return rows.map((r) => ({ categoryId: r.categoryId, amount: r.amount }));
+}

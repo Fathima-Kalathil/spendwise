@@ -7,12 +7,14 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   baseCurrency: char("base_currency", { length: 3 }).notNull().default("INR"),
   emailVerifiedAt: timestamp("email_verified_at"),
+  sessionVersion: integer("session_version").notNull().default(0), // bump to log out every device
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const emailOtps = pgTable("email_otps", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  purpose: text("purpose").notNull().default("verify"), // verify | reset
   codeHash: text("code_hash").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   attempts: integer("attempts").notNull().default(0),
@@ -79,3 +81,18 @@ export const exchangeRates = pgTable("exchange_rates", {
   rateDate: date("rate_date", { mode: "string" }).notNull(),
   source: text("source").notNull().default("api"),
 }, (t) => ({ uniq: uniqueIndex("fx_unique").on(t.base, t.quote, t.rateDate) }));
+
+export const budgets = pgTable("budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "cascade" }), // null = overall monthly budget
+  amount: numeric("amount", { precision: 19, scale: 4 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({ byUser: index("budgets_user_idx").on(t.userId) }));
+
+export const loginAttempts = pgTable("login_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  ip: text("ip").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({ byEmail: index("login_attempts_email_idx").on(t.email, t.createdAt) }));

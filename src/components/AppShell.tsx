@@ -12,7 +12,7 @@ export const useTxModal = () => useContext(ModalCtx);
 
 const NAV = [
   { href: "/dashboard", label: "Home" }, { href: "/transactions", label: "History" },
- { href: "/settings", label: "Settings" },
+  { href: "/budget", label: "Budget" }, { href: "/settings", label: "Settings" },
 ];
 
 export function AppShell(props: { userName: string; base: string; accounts: AccountWithBalance[]; categories: Cat[]; children: React.ReactNode }) {

@@ -20,10 +20,11 @@ export default async function HistoryPage({ searchParams: sp }: { searchParams: 
   const sel = (name: string) => sp[name] ?? "";
   const moreActive = ["type", "category", "currency", "account", "from", "to", "min", "max"].some((k) => sp[k]);
   const filtered = moreActive || !!sp.q;
+  const exportQs = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "page") as [string, string][]).toString();
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">History</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-2xl font-bold">History</h1><a href={`/api/export${exportQs ? `?${exportQs}` : ""}`} className="btn">Download CSV</a></div>
       <form className="card space-y-3" action="/transactions">
         <div className="flex gap-2">
           <input aria-label="Search" name="q" className="input" defaultValue={sel("q")} placeholder="Search your notes, e.g. lunch" />

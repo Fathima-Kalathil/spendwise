@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
 import { requireUser } from "@/lib/auth";
-import { getTransactions } from "@/lib/queries";
+import { getBudgets, getCategories, getTransactions } from "@/lib/queries";
 import { createConverter } from "@/lib/convert";
 import { D } from "@/lib/money";
 import { formatMoney } from "@/lib/format";
@@ -10,6 +10,7 @@ import { Stat } from "@/components/ui";
 import { CategoryDonut } from "@/components/Charts";
 import { TxTable } from "@/components/TxTable";
 import { AddButton } from "@/components/AddButton";
+import { BudgetCard, type CatBar } from "@/components/BudgetCard";
 
 const LIST_LIMIT = 8;
 
@@ -27,27 +28,36 @@ export default async function MonthPage({ searchParams }: { searchParams: Record
   const title = new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
   const months = lastMonths(12);
-  const [rows, twelve] = await Promise.all([
+  const [rows, twelve, budgets, cats] = await Promise.all([
     getTransactions(user.id, { from, to }, 5000),
     getTransactions(user.id, { from: months[0].from, to: months[11].to }, 20000),
+    getBudgets(user.id),
+    getCategories(user.id),
   ]);
 
   // Totals for the selected month (everything converted into the main currency)
   let income = D(0), expense = D(0), missing = 0;
-  const byCat = new Map<string, { value: Decimal; color: string }>();
+  const byCat = new Map<string, { name: string; value: Decimal; color: string }>();
   for (const t of rows) {
     const v = await convert(t);
     if (!v) { missing++; continue; }
     if (t.type === "income") income = income.plus(v);
     else {
       expense = expense.plus(v);
-      const k = t.categoryName ?? "No category";
-      const cur = byCat.get(k) ?? { value: D(0), color: t.categoryColor ?? "#9CA3AF" };
+      const k = t.categoryId ?? "none";
+      const cur = byCat.get(k) ?? { name: t.categoryName ?? "No category", value: D(0), color: t.categoryColor ?? "#9CA3AF" };
       byCat.set(k, { ...cur, value: cur.value.plus(v) });
     }
   }
   const left = income.minus(expense);
-  const donut = [...byCat].map(([name, v]) => ({ name, value: v.value.toDecimalPlaces(2).toNumber(), color: v.color })).sort((a, b) => b.value - a.value);
+  const donut = [...byCat.values()].map((v) => ({ name: v.name, value: v.value.toDecimalPlaces(2).toNumber(), color: v.color })).sort((a, b) => b.value - a.value);
+
+  // Budget: overall monthly limit + optional per-category limits
+  const overall = budgets.find((b) => b.categoryId === null);
+  const catBars = budgets.flatMap((b): CatBar[] => {
+    const c = b.categoryId ? cats.find((x) => x.id === b.categoryId) : undefined;
+    return c ? [{ name: c.name, color: c.color, spent: byCat.get(c.id)?.value ?? D(0), limit: D(b.amount) }] : [];
+  });
 
   // Month by month table (last 12 months)
   const table = months.map((mo) => ({ ...mo, key: mo.from.slice(0, 7), income: D(0), expense: D(0) }));
@@ -69,7 +79,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Record
           <h1 className="min-w-[10rem] text-center text-xl font-bold md:text-2xl">{title}</h1>
           <Link href={`/dashboard?month=${next}`} className="btn !px-3" aria-label="Next month">›</Link>
         </div>
-        {month !== thisMonth && <Link href="/dashboard" className="chip">Back to this month</Link>}
+        <div className="flex items-center gap-2">{month !== thisMonth && <Link href="/dashboard" className="chip">Back to this month</Link>}<a href={`/api/export?month=${month}`} className="btn">Download CSV</a></div>
       </div>
 
       {twelve.length === 0 && (
@@ -87,6 +97,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Record
         <Stat label={left.gte(0) ? "Left over" : "Overspent by"} value={formatMoney(left.abs(), base)} tone={left.gte(0) ? "pos" : "neg"} />
       </div>
       {otherCurrency && <p className="muted -mt-3 text-xs">Amounts in other currencies are converted to {base} so they can be added together.</p>}
+      <BudgetCard base={base} spent={expense} limit={overall ? D(overall.amount) : null} cats={catBars} />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="card">

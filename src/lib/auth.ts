@@ -13,8 +13,9 @@ const secret = () => {
   return new TextEncoder().encode(s ?? "dev-only-secret-change-me");
 };
 
-export async function createSession(userId: string) {
-  const token = await new SignJWT({}).setProtectedHeader({ alg: "HS256" }).setSubject(userId)
+/** `sv` is the user's session version. Changing a password bumps it, which logs out every other device. */
+export async function createSession(userId: string, sv = 0) {
+  const token = await new SignJWT({ sv }).setProtectedHeader({ alg: "HS256" }).setSubject(userId)
     .setIssuedAt().setExpirationTime(`${MAX_AGE}s`).sign(secret());
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: MAX_AGE,
@@ -25,12 +26,16 @@ export function destroySession() {
   cookies().delete(SESSION_COOKIE);
 }
 
-export async function getUserId(): Promise<string | null> {
+/** The logged-in user, or null (no cookie, bad token, deleted user, or an old session after a password change). */
+export async function getCurrentUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    return payload.sub ?? null;
+    if (!payload.sub) return null;
+    const [user] = await db.select().from(users).where(eq(users.id, payload.sub)).limit(1);
+    if (!user || user.sessionVersion !== Number(payload.sv ?? 0)) return null;
+    return user;
   } catch {
     return null;
   }
@@ -38,9 +43,7 @@ export async function getUserId(): Promise<string | null> {
 
 /** Use at the top of every server action / page that touches user data. */
 export async function requireUser() {
-  const id = await getUserId();
-  if (!id) redirect("/login");
-  const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
   return user;
 }

@@ -1,3 +1,9 @@
+import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/AuthForm";
 import { registerAction } from "@/lib/actions";
-export default function RegisterPage() { return <AuthForm mode="register" action={registerAction} />; }
+import { getCurrentUser } from "@/lib/auth";
+
+export default async function RegisterPage() {
+  if (await getCurrentUser()) redirect("/dashboard");
+  return <AuthForm mode="register" action={registerAction} />;
+}
