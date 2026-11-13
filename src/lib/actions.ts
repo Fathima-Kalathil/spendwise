@@ -14,7 +14,7 @@ import { D, isValidAmount, isValidRate } from "./money";
 import { ACCOUNT_TYPES, CURRENCY_CODES, PAYMENT_METHODS } from "./currencies";
 import { DEFAULT_CATEGORIES } from "./defaults";
 import { OTP_MAX_ATTEMPTS, OTP_RESEND_MS, OTP_TTL_MS, generateOtp, hashOtp, isExpired, otpMatches, otpSecret } from "./otp";
-import { sendOtpEmail } from "./mail";
+import { emailConfigured, sendOtpEmail } from "./mail";
 
 export type ActionState = { error?: string; ok?: boolean };
 const refresh = () => revalidatePath("/", "layout");
@@ -147,8 +147,13 @@ export async function resendOtpAction(_: ActionState, fd: FormData): Promise<Act
 export async function forgotPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const p = z.object({ email: z.string().trim().toLowerCase().email("Enter a valid email.") }).safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: firstError(p.error) };
+  // A site-wide setup problem (not about this person), so it is safe to say so clearly instead of failing silently.
+  if (!emailConfigured()) return { error: "Email isn’t set up on this site yet, so we can’t send a code. The site owner needs to add the email settings in Vercel." };
   const [u] = await db.select().from(users).where(eq(users.email, p.data.email)).limit(1);
-  if (u?.emailVerifiedAt) await issueOtp(u.id, u.email, "reset");
+  let result: string = "no-account";
+  if (u && !u.emailVerifiedAt) result = "account-not-verified";
+  if (u?.emailVerifiedAt) result = await issueOtp(u.id, u.email, "reset");
+  console.log(`[forgot-password] result=${result}`); // only the outcome is logged (never the email address), so you can see why no email came in Vercel > Logs
   redirect(`/reset-password?email=${encodeURIComponent(p.data.email)}`); // same next step whether or not the account exists
 }
 

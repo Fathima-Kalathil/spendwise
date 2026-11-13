@@ -15,7 +15,7 @@ export function ResetForm({ email }: { email: string }) {
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
       <div className="card space-y-4">
         <div><h1 className="text-lg font-bold">Reset your password</h1>
-          <p className="muted mt-1 text-sm">If <b>{email}</b> has an account, we sent a 6-digit code to it. The code works for 10 minutes. Check your spam folder too.</p></div>
+          <p className="muted mt-1 text-sm">If <b>{email}</b> has an account, we sent a 6-digit code to it. The code works for 10 minutes. Use the same email you signed up with, and check your spam folder too. If you asked for a code a moment ago, use that latest email.</p></div>
         <form action={reset} className="space-y-3">
           <input type="hidden" name="email" value={email} />
           <div><label className="label" htmlFor="code">Code from your email</label>
